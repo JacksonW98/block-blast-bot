@@ -88,7 +88,7 @@ def run(seed=None):
         telemetry.publish_plan(_plan_view(sequence, tray_colors), counter, result["combo_maintained"])
         # Update the tray now so its step numbers show up with the plan.
         _publish_state(game, orders=orders, placed=set())
-        if not result["combo_maintained"]:
+        if result["combo_broken"]:
             telemetry.record_combo_break()
             telemetry.log("Combo cannot be kept this batch, placing all pieces instead", "warn")
 
@@ -101,7 +101,7 @@ def run(seed=None):
             if not _sleep_interruptibly(telemetry.speed()):
                 return
             lines = game.place(move["slot"], move["row"], move["col"])
-            counter = 0 if lines else counter + 1
+            counter = solver.next_counter(counter, lines)
             placed.add(move["slot"])
             solver.save_combo_counter(counter)
             telemetry.record_placement(lines, counter)

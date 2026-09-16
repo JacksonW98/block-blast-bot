@@ -1,8 +1,9 @@
 """Combo-aware move planner.
 
-The combo rule: after a line clear you get three placements to clear
-another line, and missing on the third breaks the combo. So the counter
-(placements since the last clear) can only be 0, 1 or 2.
+The combo rule: the counter is the number of placements since the last line
+clear. A clear sets it to 0 and every other placement adds 1. If it reaches
+3 the combo is lost, so while a combo is going the third placement has to
+clear. Once it's lost the counter stays at 3 until the next clear.
 
 For each batch we try every order of the pieces and every position for
 each, then rank whole sequences by:
@@ -24,8 +25,10 @@ import cv2
 import numpy as np
 
 BOARD_SIZE = 8
-# Highest the counter may reach. At 2 the next placement has to clear.
+# Highest the counter can be while keeping the combo. At 2 the next
+# placement has to clear.
 MAX_STREAK = 2
+COMBO_LOST = 3
 STATE_FILE = Path(__file__).parent / "combo_state.json"
 
 
@@ -37,6 +40,11 @@ def load_combo_counter():
 
 def save_combo_counter(n):
     STATE_FILE.write_text(json.dumps({"placements_since_clear": n}))
+
+
+def next_counter(counter, lines_cleared):
+    """Counter after a placement: 0 on a clear, otherwise +1, stopping at 3."""
+    return 0 if lines_cleared else min(counter + 1, COMBO_LOST)
 
 
 def trim_piece(piece):
@@ -156,7 +164,7 @@ def _search(board, pieces, start_counter, enforce_constraint):
                 cleared = lines > 0
                 if must_clear and not cleared:
                     continue
-                new_counter = 0 if cleared else counter + 1
+                new_counter = next_counter(counter, lines)
                 if enforce_constraint and new_counter > MAX_STREAK:
                     continue
                 seq.append((slot_idx, r, c, piece, lines))
@@ -173,24 +181,29 @@ def plan(board, pieces_by_slot, start_counter=None):
     """pieces_by_slot: three bool arrays or None for empty slots.
 
     Returns a dict with sequence (list of moves), combo_maintained,
-    leftover_counter, total_lines and full_clear_occurred. Each move is
+    combo_broken (a live combo gets lost this batch), leftover_counter,
+    total_lines and full_clear_occurred. Each move is
     {slot, order, row, col, piece, lines_cleared}.
     """
     if start_counter is None:
         start_counter = load_combo_counter()
+    start_counter = min(start_counter, COMBO_LOST)
+    combo_active = start_counter < COMBO_LOST
 
     pieces = [(i, trim_piece(p)) for i, p in enumerate(pieces_by_slot)
               if p is not None and np.any(p)]
     if not pieces:
-        return {"sequence": [], "combo_maintained": True, "leftover_counter": start_counter,
-                "total_lines": 0, "full_clear_occurred": False}
+        return {"sequence": [], "combo_maintained": True, "combo_broken": False,
+                "leftover_counter": start_counter, "total_lines": 0,
+                "full_clear_occurred": False}
 
-    constrained = _search(board, pieces, start_counter, enforce_constraint=True)
+    # With no combo going there's nothing to protect, so skip the constraint.
+    constrained = _search(board, pieces, start_counter, enforce_constraint=combo_active)
     _, seq, leftover, total_lines, _safety, full_clear_occurred = constrained
 
     # If keeping the combo means stranding a piece, break the combo instead.
-    combo_maintained = len(seq) > 0
-    if len(seq) < len(pieces):
+    combo_maintained = len(seq) > 0 and combo_active
+    if combo_active and len(seq) < len(pieces):
         unconstrained = _search(board, pieces, start_counter, enforce_constraint=False)
         _, useq, uleftover, utotal_lines, _usafety, ufull_clear = unconstrained
         if len(useq) > len(seq):
@@ -207,12 +220,10 @@ def plan(board, pieces_by_slot, start_counter=None):
             "lines_cleared": lines,
         })
 
-    if not combo_maintained:
-        leftover = 0
-
     return {
         "sequence": moves,
         "combo_maintained": combo_maintained,
+        "combo_broken": combo_active and not combo_maintained,
         "leftover_counter": leftover,
         "total_lines": total_lines,
         "full_clear_occurred": full_clear_occurred,

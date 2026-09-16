@@ -137,13 +137,49 @@ def _row_bands(row_has_vivid, gap_limit):
     return bands
 
 
-def find_tray_band(img, board_bottom, min_height=0):
-    """Rows (y0, y1) containing the tray pieces: the first colored band below
-    the board that's at least min_height tall. The height check skips thin
-    decoration under the board, like the glowing dots on the grey skin.
+TRAY_DARK = 40              # darker than this is letterboxing, never a piece
+TRAY_BG_DISTANCE = 10       # Lab distance from the background that counts as a piece
+
+
+def tray_mask(img, board_bbox):
+    """True where a pixel below the board looks like part of a tray piece.
+
+    The background is taken as the median color below the board, since
+    pieces only cover a small part of that area, and anything far enough
+    from it counts. That works whatever color the skin uses, including red
+    pieces on a red background. Regions too big to be a piece (like a phone
+    bezel in a slightly different shade) are then removed.
     """
-    vivid = vivid_mask(img)
-    row_has_vivid = vivid[board_bottom:, :].sum(axis=1) > 3
+    bx, by, bw, bh = board_bbox
+    board_bottom = by + bh
+    mask = np.zeros(img.shape[:2], dtype=bool)
+    region = img[board_bottom:]
+    if region.size == 0:
+        return mask
+    lab = cv2.cvtColor(np.ascontiguousarray(region), cv2.COLOR_RGB2LAB).astype(np.float32)
+    lit = region.max(axis=2) > TRAY_DARK
+    sample = lab[::4, ::4][lit[::4, ::4]]
+    if sample.size == 0:
+        return mask
+    background = np.median(sample, axis=0)
+    fg = lit & (np.linalg.norm(lab - background, axis=2) > TRAY_BG_DISTANCE)
+
+    unit = (bw / BOARD_SIZE + bh / BOARD_SIZE) / 2 * TRAY_UNIT_RATIO
+    max_size = (MAX_PIECE_DIM + 1) * unit
+    n, labels, stats, _cent = cv2.connectedComponentsWithStats(fg.astype(np.uint8), connectivity=8)
+    too_big = (stats[:, cv2.CC_STAT_WIDTH] > max_size) | (stats[:, cv2.CC_STAT_HEIGHT] > max_size)
+    too_big[0] = True  # label 0 is the background
+    mask[board_bottom:] = ~too_big[labels]
+    return mask
+
+
+def find_tray_band(mask, board_bottom, min_height=0):
+    """Rows (y0, y1) containing the tray pieces: the first band of tray_mask
+    pixels below the board that's at least min_height tall. The height check
+    skips thin decoration under the board, like the glowing dots on the grey
+    skin.
+    """
+    row_has_vivid = mask[board_bottom:, :].sum(axis=1) > 3
 
     for start, end in _row_bands(row_has_vivid, gap_limit=40):
         if end - start >= min_height:
@@ -159,12 +195,12 @@ def read_tray_detailed(img, board_bbox):
     board_bottom = by + bh
     board_cell_size = (bw / BOARD_SIZE + bh / BOARD_SIZE) / 2
     unit = board_cell_size * TRAY_UNIT_RATIO
-    band = find_tray_band(img, board_bottom, min_height=unit * 0.8)
+    vivid = tray_mask(img, board_bbox)
+    band = find_tray_band(vivid, board_bottom, min_height=unit * 0.8)
     if band is None:
         return [None, None, None]
     y0, y1 = band
 
-    vivid = vivid_mask(img)
     vivid_u8 = vivid.astype(np.uint8) * 255
     band_mask = np.zeros_like(vivid_u8)
     band_mask[y0:y1, :] = vivid_u8[y0:y1, :]

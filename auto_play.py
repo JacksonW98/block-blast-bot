@@ -166,7 +166,7 @@ def run_batch(win):
     if pieces_available == 0:
         return False
 
-    counter = solver.load_combo_counter()
+    counter = min(solver.load_combo_counter(), solver.COMBO_LOST)
     result = solver.plan(board, pieces_by_slot, start_counter=counter)
 
     if len(result["sequence"]) < pieces_available:
@@ -187,7 +187,7 @@ def run_batch(win):
     telemetry.publish_plan(_plan_view(result, tray_colors), counter, result["combo_maintained"])
     orders = {m["slot"]: m["order"] for m in result["sequence"]}
     _publish_view(img, board_bbox, board, detailed, orders=orders)
-    if not result["combo_maintained"]:
+    if result["combo_broken"]:
         telemetry.record_combo_break()
         telemetry.log("Combo cannot be kept this batch, placing all pieces instead", "warn")
 
@@ -209,24 +209,21 @@ def run_batch(win):
                           f"retries, skipped", "warn")
             continue
 
-        drag_result = drag_controller.place_piece(
+        drag_controller.place_piece(
             win, img, board_bbox, slot_info, move["piece"], move["row"], move["col"])
 
-        if not drag_result["committed"]:
-            telemetry.log(f"Step {move['order']}: drag to ({move['row']},{move['col']}) "
-                          f"aborted, re-planning from a fresh read", "error")
-            # The rest of the plan assumed this move happened, so replan.
+        expected_board, _lines = solver.place(sim_board, move["piece"], move["row"], move["col"])
+        if not wait_for_board_match(win, expected_board, board_bbox):
+            # The rest of the plan assumed this move worked, so plan again
+            # from what's actually on screen.
+            telemetry.log(f"Step {move['order']}: board doesn't match after dropping at "
+                          f"({move['row']},{move['col']}), re-planning", "warn")
             solver.save_combo_counter(running_counter)
             telemetry.clear_plan()
             time.sleep(0.5)
             return True
-
-        expected_board, _lines = solver.place(sim_board, move["piece"], move["row"], move["col"])
-        if wait_for_board_match(win, expected_board, board_bbox):
-            sim_board = expected_board
-        else:
-            sim_board = read_state.read_board(capture.grab_window(win["window_id"]), board_bbox)
-        running_counter = 0 if move["lines_cleared"] else running_counter + 1
+        sim_board = expected_board
+        running_counter = solver.next_counter(running_counter, move["lines_cleared"])
 
         placed_slots.add(move["slot"])
         batch_done = len(placed_slots) == len(result["sequence"])

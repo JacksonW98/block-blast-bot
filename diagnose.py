@@ -64,17 +64,17 @@ def collect(save_images=True):
     unit = cell * read_state.TRAY_UNIT_RATIO
     out["tray_unit_px"] = round(unit, 1)
     # Same height floor as read_tray_detailed, so we report the same band.
-    band = read_state.find_tray_band(img, by + bh, min_height=unit * 0.8)
+    vivid = read_state.tray_mask(img, bbox)
+    band = read_state.find_tray_band(vivid, by + bh, min_height=unit * 0.8)
     if band is None:
         out["error"] = "No tray band found below the board."
-        out["notes"].append("Either the tray is genuinely empty, or vivid_mask does not "
-                            "recognise this skin's piece colors as 'filled'.")
+        out["notes"].append("Either the tray is empty, or the pieces can't be told "
+                            "apart from the background.")
         return out
     y0, y1 = band
     out["tray_band"] = {"y0": int(y0), "y1": int(y1), "height": int(y1 - y0),
                         "height_in_cells": round((y1 - y0) / cell, 2)}
 
-    vivid = read_state.vivid_mask(img)
     band_mask = np.zeros(vivid.shape, np.uint8)
     band_mask[y0:y1, :] = vivid[y0:y1, :].astype(np.uint8) * 255
     n, _labels, stats, _cent = cv2.connectedComponentsWithStats(band_mask, connectivity=8)

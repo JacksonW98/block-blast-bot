@@ -110,7 +110,7 @@ function renderTray(tray, activeOrder) {
 
 /* plan */
 
-function renderPlan(plan, activeOrder, comboMaintained) {
+function renderPlan(plan, activeOrder, comboMaintained, comboCounter) {
   el.plan.replaceChildren();
   if (!plan || !plan.length) {
     const li = document.createElement('li');
@@ -121,8 +121,9 @@ function renderPlan(plan, activeOrder, comboMaintained) {
     el.planHint.style.color = 'var(--dim)';
     return;
   }
-  el.planHint.textContent = comboMaintained ? 'combo can be kept' : 'combo breaks this batch';
-  el.planHint.style.color = comboMaintained ? 'var(--dim)' : 'var(--gold)';
+  const noCombo = comboCounter >= 3;
+  el.planHint.textContent = noCombo ? 'no combo going' : comboMaintained ? 'combo can be kept' : 'combo breaks this batch';
+  el.planHint.style.color = noCombo || comboMaintained ? 'var(--dim)' : 'var(--gold)';
 
   const names = ['left', 'middle', 'right'];
   for (const step of plan) {
@@ -224,7 +225,7 @@ function render(s) {
   renderChrome(s);
   renderBoard(s.board, s.plan, s.active_order);
   renderTray(s.tray, s.active_order);
-  renderPlan(s.plan, s.active_order, s.combo_maintained);
+  renderPlan(s.plan, s.active_order, s.combo_maintained, s.combo_counter);
   renderLog(s.log);
   if (document.activeElement !== el.speed) {
     const ms = Math.round((s.speed ?? 0.45) * 1000);

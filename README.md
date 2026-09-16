@@ -38,7 +38,7 @@ Block Blast lets you set a custom tile image for the blocks. Setting it to a pla
 1. **Capture.** `capture.py` screenshots the iPhone Mirroring window. It still works if other windows are covering it.
 2. **Read the board.** `read_state.py` finds the board by looking for a large dark square, then checks the middle of each of the 64 cells to see if a block is there. The three tray pieces are read from the area below the board.
 3. **Plan.** `solver.py` tries every order and position for the three pieces. It prefers moves that place every piece, keep the combo going, leave plenty of open space and set up lines that are close to clearing.
-4. **Place.** `drag_controller.py` drags each piece to its spot. Before letting go it checks that the right cells are covered, and if they aren't it puts the piece back. After each move the bot checks the board matches what it expected.
+4. **Place.** `drag_controller.py` drags each piece to its spot. After each move the bot checks the board matches what it expected, and plans again from the screen if it doesn't.
 
 The bot stops when a piece can't be placed anywhere, since that means the game is over.
 

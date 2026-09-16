@@ -1,10 +1,12 @@
-"""Vision tests against drawn frames in two game skins, checking the exact
+"""Vision tests against drawn frames in three game skins, checking the exact
 board and pieces come back.
 
   grey: board and background only ~15 brightness levels apart, plus a ring
         of glowing dots between the board and the tray
   navy: the default look, including the green block that's darker than
         the background
+  red:  red background with a slight gradient, and a red tray piece with a
+        drop shadow, colors taken from a real screenshot
 
     python test_vision.py
 """
@@ -97,6 +99,26 @@ def navy_skin_frame():
     return img
 
 
+def red_skin_frame():
+    img = np.zeros((H, W, 3), np.uint8)
+    top, bottom = 150, H - 120
+    for y in range(top, bottom):                          # background gradient
+        t = (y - top) / (bottom - top)
+        color = tuple(int(a + (b - a) * t) for a, b in zip((182, 85, 87), (166, 75, 76)))
+        cv2.line(img, (18, y), (W - 19, y), color, 1)
+    cv2.putText(img, "4698", (200, 250), cv2.FONT_HERSHEY_SIMPLEX, 2.6, (255, 255, 255), 8)
+    for cells, x0 in PIECES:                              # drop shadows under tray pieces
+        for r, row in enumerate(cells):
+            for c, ch in enumerate(row):
+                if ch == "x":
+                    x, y = int(x0 + c * UNIT + 5), int(TRAY_TOP + r * UNIT + 5)
+                    cv2.rectangle(img, (x, y), (x + int(UNIT) - 3, y + int(UNIT) - 3), (143, 65, 67), -1)
+    tray = [(105, 188, 70), (190, 56, 51), (221, 192, 72)]
+    _draw_common(img, (62, 26, 27), (48, 20, 21),
+                 lambda r, c: (241, 217, 100), lambda i: tray[i])
+    return img
+
+
 def check(name, img):
     failures = []
     bbox = read_state.find_board_bbox(img)
@@ -130,6 +152,7 @@ def main():
     ok &= check("grey skin (board/background 15 levels apart, glow ring under board)",
                 grey_skin_frame())
     ok &= check("navy skin (original palette, dim green piece)", navy_skin_frame())
+    ok &= check("red skin (red piece on red background, drop shadows)", red_skin_frame())
     print("\nall vision tests passed" if ok else "\nVISION TESTS FAILED")
     return 0 if ok else 1
 
