@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Runtime state
+combo_state.json
+
+# Calibration is recorded on your own setup, so it's per machine
+piece_calibration.json
+
+# macOS
+.DS_Store
+
+# Diagnose button output
+diagnose_frame.png
+diagnose_annotated.png

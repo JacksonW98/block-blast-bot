@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Block Blast Bot</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='40' height='40' x='5' y='5' rx='8' fill='%233ec6f0'/><rect width='40' height='40' x='55' y='5' rx='8' fill='%23f5a524'/><rect width='40' height='40' x='5' y='55' rx='8' fill='%23a855f7'/><rect width='40' height='40' x='55' y='55' rx='8' fill='%234ade80'/></svg>">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="app">
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+      <div class="brand-text">
+        <h1>Block Blast Bot</h1>
+      </div>
+    </div>
+    <div class="status-block">
+      <span id="status-pill" class="pill pill-idle"><span class="dot"></span><span id="status-text">Idle</span></span>
+    </div>
+  </header>
+
+  <section class="controls">
+    <div class="seg" role="group" aria-label="Run mode">
+      <button class="seg-btn is-active" data-mode="demo" id="mode-demo">Demo</button>
+      <button class="seg-btn" data-mode="live" id="mode-live">Live</button>
+    </div>
+    <div class="btn-row">
+      <button id="btn-start" class="btn btn-primary">Start</button>
+      <button id="btn-pause" class="btn" disabled>Pause</button>
+      <button id="btn-stop" class="btn btn-danger" disabled>Stop</button>
+      <button id="btn-diagnose" class="btn" title="Capture one frame and report what the vision pipeline sees">Diagnose</button>
+    </div>
+    <label class="slider">
+      <span>Move delay</span>
+      <input id="speed" type="range" min="0" max="1200" step="25" value="450">
+      <output id="speed-out">0.45s</output>
+    </label>
+    <div class="spacer"></div>
+    <div class="combo" title="Placements since the last line clear. Three in a row breaks the combo.">
+      <span class="combo-label">Combo budget</span>
+      <div class="combo-pips" id="combo-pips"><i></i><i></i><i></i></div>
+      <button id="btn-reset-combo" class="btn btn-quiet">Reset</button>
+    </div>
+  </section>
+
+  <main class="grid">
+
+    <section class="card card-board">
+      <div class="card-head">
+        <h2>Board</h2>
+      </div>
+      <div class="board-wrap">
+        <div class="board" id="board"></div>
+      </div>
+      <div class="tray-block">
+        <div class="card-head card-head-sub"><h3>Tray</h3><span class="hint">numbered in play order</span></div>
+        <div class="tray" id="tray"></div>
+      </div>
+    </section>
+
+    <section class="card card-side">
+      <div class="card-head">
+        <h2>Plan</h2>
+        <span class="hint" id="plan-hint"></span>
+      </div>
+      <ol class="plan" id="plan"></ol>
+
+      <div class="log-block">
+        <div class="card-head card-head-sub"><h3>Event log</h3><button id="btn-clear-log" class="btn btn-quiet">Clear</button></div>
+        <div class="log-scroll"><div class="log" id="log"></div></div>
+      </div>
+    </section>
+
+    <section class="card card-stats">
+      <div class="card-head"><h2>Stats</h2></div>
+      <dl class="stat-list">
+        <div><dt>Pieces placed</dt><dd id="s-pieces">0</dd></div>
+        <div><dt>Lines cleared</dt><dd id="s-lines">0</dd></div>
+        <div><dt>Batches planned</dt><dd id="s-batches">0</dd></div>
+        <div><dt>Best clear streak</dt><dd id="s-streak">0</dd></div>
+        <div><dt>Combos broken</dt><dd id="s-broken">0</dd></div>
+        <div><dt>Pieces / min</dt><dd id="s-ppm">0</dd></div>
+        <div><dt>Runtime</dt><dd id="s-elapsed">0:00</dd></div>
+      </dl>
+    </section>
+
+  </main>
+
+</div>
+<script id="initial-state" type="application/json">null</script>
+<script src="/static/app.js"></script>
+</body>
+</html>

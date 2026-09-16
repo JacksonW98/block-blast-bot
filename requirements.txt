@@ -1,0 +1,11 @@
+# Needed everywhere (this is all demo mode uses)
+numpy>=2.0
+opencv-python-headless>=4.9
+pillow>=10.0
+
+# macOS only, for live play
+pyobjc-framework-Quartz>=10.0 ; sys_platform == "darwin"
+pyobjc-framework-Cocoa>=10.0 ; sys_platform == "darwin"
+
+# If the calibration window doesn't appear, install opencv-python instead
+# of the headless build.
